@@ -1,79 +1,99 @@
-# Assignment 5 - Model Monitoring
+Assignment 5 – Model Monitoring
 
-This project implements a two-container MLOps system for monitoring a sentiment analysis model using **FastAPI**, **Streamlit**, and **Docker**.
+This project sets up a two-container system for serving a sentiment analysis model and monitoring its performance in real time. One container runs a FastAPI prediction service, and the second container runs a Streamlit dashboard that reads the prediction logs and shows drift, accuracy, and alerts.
 
----
+System Architecture
 
-# System Architecture
+The setup has two separate services:
 
-- **FastAPI Prediction Service**  
-  Serves sentiment predictions at `/predict`.  
-  Each request is logged to `/logs/prediction_logs.json`.
+1. FastAPI Prediction Service
 
-- **Streamlit Monitoring Dashboard**  
-  Reads the shared `/logs/prediction_logs.json` to visualize:
-  - Data Drift (sentence length distributions)
-  - Target Drift (predicted vs true label distributions)
-  - Model Accuracy and Precision
-  - An alert if accuracy drops below 80%
+Runs the /predict endpoint.
 
-Both containers share a Docker volume (`monitor_logs`) and communicate over a Docker network** (`monitor_net`).
+Every request gets logged to a shared file:
+logs/prediction_logs.json
 
----
+Each log entry includes:
 
-## Project Structure
+timestamp
 
----
+request_text
 
-## Running the Project
+predicted_sentiment
 
-### 1. Build and Run Containers
-```bash
-# Build Docker images and create network/volume
+true_sentiment (supplied in the request)
+
+2. Streamlit Monitoring Dashboard
+
+Reads the same prediction_logs.json file from the shared Docker volume.
+
+Shows:
+
+Data drift (sentence length distribution)
+
+Target drift (predicted sentiment distribution)
+
+Accuracy + precision from user feedback
+
+Shows an alert banner if accuracy drops below 80%.
+
+Both containers share:
+
+A Docker network (so they can communicate)
+
+A Docker volume (so they can access the same logs)
+
+Project Structure
+.
+├── api/
+│   ├── main.py
+│   ├── sentiment_model.pkl
+│   └── Dockerfile
+├── monitoring/
+│   ├── dashboard.py
+│   ├── IMDB Dataset.csv
+│   └── Dockerfile
+├── evaluate.py
+├── test.json
+└── Makefile
+
+How to Run Everything
+1. Build the images
 make build
 
-# Run the API and dashboard containers
+2. Run both containers
+
+This creates the network + volume and starts the API and dashboard:
+
 make run
 
-
-#Stop containers:
-make clean
-
-
-
-
-
-#curl Exmaple:
+3. Test the API (example curl request)
 curl -X POST "http://localhost:8000/predict" \
      -H "Content-Type: application/json" \
      -d '{"text": "The movie was amazing!", "true_sentiment": "positive"}'
 
-#Expected Response
-#All of the logs are written to /logs/prediction_logs.json
+4. Open the monitoring dashboard
 
+Go to:
+http://localhost:8501
 
-#To evaluate model performance:
+This will show drift plots, prediction stats, and the alert if accuracy is too low.
+
+5. Evaluate the API using the script
+
+The evaluate.py script sends all items from test.json to the API and prints accuracy.
+
+Run it with:
+
 python evaluate.py
 
+Cleaning Up
 
-#All Steps (Repeat of the above):
+To stop containers and remove the network/volume:
 
-# Build images and create network/volume
-make build
-
-# Run containers
-make run
-
-# Test API
-curl -X POST "http://localhost:8000/predict" \
-     -H "Content-Type: application/json" \
-     -d '{"text": "The movie was amazing!", "true_sentiment": "positive"}'
-
-# Open the Streamlit dashboard in browser
-# http://localhost:8501
-
-# Run evaluation script
-python evaluate.py
-
-# Clean up everything
 make clean
+
+Summary
+
+This project shows how to package a simple MLOps workflow using Docker.
+The FastAPI service handles predictions and logs everything, while the Streamlit dashboard monitors model behavior using those logs. The Makefile handles all Docker commands so the whole system can be run with just a few simple commands.
